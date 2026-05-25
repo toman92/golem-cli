@@ -1,0 +1,51 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: golem_ollama
+    ports:
+      # Secure Binding: Binds exclusively to localhost (127.0.0.1) to prevent 
+      # external RCE or unauthorized access from other machines on the network.
+      - "127.0.0.1:11434:11434"
+    volumes:
+      # Persistent named volume ensures models are not re-downloaded on restart
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    # OPTIONAL: Uncomment the deploy section below to enable GPU acceleration
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: golem_ollama_init
+    # Ephemeral sidecar container that automatically bootstraps the required model
+    command: >
+      sh -c "
+      echo 'Waiting for Ollama API to become ready...' &&
+      sleep 2 &&
+      echo 'Pulling optimized micro-model (qwen2.5-coder:1.5b)...' &&
+      ollama pull qwen2.5-coder:1.5b &&
+      echo 'Initialization complete! You can now use Golem.'
+      "
+    environment:
+      # Point the CLI to the adjacent service container
+      - OLLAMA_HOST=ollama:11434
+    depends_on:
+      ollama:
+        condition: service_healthy
+    # Fails safely and never restarts once initialization is complete
+    restart: "no"
+
+volumes:
+  ollama_data:
+    name: golem_ollama_data
