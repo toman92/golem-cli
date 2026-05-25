@@ -30,7 +30,9 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
         run: |
+          mkdir -p dist
           BINARY_NAME=golem
           if [ "${{ matrix.goos }}" = "windows" ]; then
             BINARY_NAME=golem.exe
